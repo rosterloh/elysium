@@ -1,0 +1,96 @@
+use ratatui::{
+    prelude::*,
+    widgets::{ListItem, *},
+};
+
+use crate::devices::config::Item;
+
+use super::app::{App, InputMode};
+
+pub fn render(f: &mut Frame, app: &mut App) {
+    let mut search_chunk_size = 0;
+
+    if matches!(app.input_mode, InputMode::Search) || !app.search.is_empty() {
+        search_chunk_size = 3;
+    }
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(search_chunk_size), Constraint::Min(1)])
+        .split(f.area());
+
+    let items: Vec<ListItem> = app
+        .items
+        .items
+        .iter()
+        .map(|i| formatted_list_item(&i.item))
+        .collect();
+
+    let items = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Core Devices"))
+        .highlight_style(
+            Style::default()
+                .bg(app.cfg.highlight_style_bg)
+                .fg(app.cfg.highlight_style_fg)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let input = Paragraph::new(Text::from(app.search.clone()))
+        .style(Style::default())
+        .block(Block::default().borders(Borders::ALL).title("Search"));
+
+    f.render_widget(input, chunks[0]);
+
+    f.render_stateful_widget(items, chunks[1], &mut app.items.state);
+
+    match app.input_mode {
+        InputMode::Search => f.set_cursor_position(Position::new(1 + app.search.len() as u16, 1)),
+        InputMode::Preview => render_preview(f, app),
+        _ => {}
+    }
+}
+
+fn formatted_list_item(item: &Item) -> ListItem<'_> {
+    // if task.internal {
+    //     ListItem::new(task.name.as_str().to_owned() + " (internal)")
+    //         .style(Style::default().fg(Color::DarkGray))
+    // } else {
+    //     ListItem::new(task.name.as_str()).style(Style::default())
+    // }
+    ListItem::new(item.name.as_str()).style(Style::default())
+}
+
+pub fn render_preview(f: &mut Frame, app: &mut App) {
+    let selected_item = app.items.get_selected().unwrap();
+    let area = centered_rect(70, 90, f.area());
+    let paragraph = Paragraph::new(selected_item.body.as_str())
+        .alignment(Alignment::Left)
+        .style(Style::default())
+        .block(Block::default().borders(Borders::ALL).title(format!(
+            "Preview: {}",
+            selected_item.name.split(':').last().unwrap()
+        )));
+
+    f.render_widget(Clear, area);
+    f.render_widget(paragraph, area);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
