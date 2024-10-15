@@ -5,7 +5,7 @@ use crate::aws::AwsCloud;
 use crate::tui::command::*;
 use crate::tui::config::Config;
 use crate::tui::event::Event;
-use crate::tui::ui::{Tab, MAIN_TABS};
+use crate::tui::ui::{Tab, MAIN_TABS, AWS_INFO_TABS};
 use crate::tui::widgets::list::SelectableList;
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
@@ -22,6 +22,8 @@ pub struct App {
     pub cfg: Config,
     /// Selected tab.
     pub tab: Tab,
+    /// Aws info.
+    pub info_index: usize,
     /// Selected block.
     pub block_index: usize,
     /// List items.
@@ -32,8 +34,8 @@ pub struct App {
     pub input: Input,
     /// Enable input.
     pub input_mode: bool,
-    /// Device list scroll index.
-    pub devices_scroll_index: usize,
+    // /// Device list scroll index.
+    // pub devices_scroll_index: usize,
     /// Should the application quit?
     pub should_quit: bool,
 }
@@ -45,12 +47,13 @@ impl App {
             aws,
             cfg,
             tab: Tab::default(),
+            info_index: 0,
             block_index: 0,
             list: SelectableList::default(),
             show_details: false,
             input: Input::default(),
             input_mode: false,
-            devices_scroll_index: 0,
+            // devices_scroll_index: 0,
             should_quit: false,
         };
         app.handle_tab()?;
@@ -96,16 +99,19 @@ impl App {
                     self.tab = (((self.tab as usize).checked_add(amount).unwrap_or_default())
                         % MAIN_TABS.len())
                     .into();
+                    self.info_index = self.tab as usize;
                     self.handle_tab()?;
                 }
                 ScrollType::Table => {
-                    self.devices_scroll_index = self.devices_scroll_index.saturating_add(amount);
+                    self.info_index = (self.info_index.checked_add(amount).unwrap_or_default())
+                        % AWS_INFO_TABS.len();
+                    self.handle_tab()?;
                 }
                 ScrollType::List => {
                     self.list.next(amount)
                 }
                 ScrollType::Block => {
-                    self.block_index = (self.block_index.saturating_add(1)) % 3;
+                    self.block_index = (self.block_index.saturating_add(1)) % 1; // Only one block for now
                 }
             }
             Command::Previous(scroll_type, amount) => match scroll_type {
@@ -114,16 +120,22 @@ impl App {
                         .checked_sub(amount)
                         .unwrap_or(MAIN_TABS.len() - 1)
                         .into();
+                    self.info_index = self.tab as usize;
                     self.handle_tab()?;
                 }
                 ScrollType::Table => {
-                    self.devices_scroll_index = self.devices_scroll_index.saturating_sub(amount);
+                    self.info_index = self
+                        .info_index
+                        .checked_sub(amount)
+                        .unwrap_or(AWS_INFO_TABS.len() - 1);
+                    self.handle_tab()?;
+                    // self.devices_scroll_index = self.devices_scroll_index.saturating_sub(amount);
                 }
                 ScrollType::List => {
                     self.list.previous(amount)
                 }
                 ScrollType::Block => {
-                    self.block_index = self.block_index.checked_sub(1).unwrap_or(0);
+                    self.block_index = self.block_index.checked_sub(1).unwrap_or(0); // Only one block for now
                 }
             }
             Command::Top => {
@@ -156,10 +168,9 @@ impl App {
             Tab::CoreDevices => {
                 self.list = SelectableList::with_items(
                     self.aws
-                        .devices
-                        .clone()
-                        .iter()
-                        .map(|i| vec![i.name.to_string(), i.status.to_string(), i.last_status_update_timestamp.to_string()])
+                        .info(&AWS_INFO_TABS[self.info_index])
+                        .items()
+                        .into_iter()
                         .filter(|items| {
                             self.input.value().is_empty()
                                 || items.iter().any(|item| {
@@ -170,8 +181,25 @@ impl App {
                         .collect(),
                 );
             }
-            Tab::ThingGroups => {}
-            Tab::Deployments => {}
+            Tab::ThingGroups => {
+                self.list = SelectableList::with_items(vec![]);
+            }
+            Tab::Deployments => {
+                self.list = SelectableList::with_items(
+                    self.aws
+                        .info(&AWS_INFO_TABS[self.info_index])
+                        .items()
+                        .into_iter()
+                        .filter(|items| {
+                            self.input.value().is_empty()
+                                || items.iter().any(|item| {
+                                    item.to_lowercase()
+                                        .contains(&self.input.value().to_lowercase())
+                                })
+                        })
+                        .collect(),
+                );
+            }
         }
         Ok(())
     }

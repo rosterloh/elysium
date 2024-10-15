@@ -1,3 +1,4 @@
+use crate::{aws::Info, tui::app::App};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Modifier, Style, Stylize},
@@ -9,14 +10,17 @@ use ratatui::{
     Frame,
 };
 use tui_input::Input;
-
-use super::app::App;
+use unicode_width::UnicodeWidthStr;
 
 /// Titles of the main tabs.
 pub const MAIN_TABS: &[&str] = Tab::get_headers();
 
-/// Header for the devices table.
-const DEVICES_HEADERS: &[&str] = &["Name", "Status", "Last Status Update"];
+/// Titles of the ELF info tabs.
+pub const AWS_INFO_TABS: &[Info] = &[
+    Info::CoreDevices,
+    Info::ThingGroups,
+    Info::Deployments,
+];
 
 /// Maximum number of elements to show in table/list.
 const LIST_LIMIT: usize = 100;
@@ -102,7 +106,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
             render_group_info(app, f, chunks[1]);
         }
         Tab::Deployments => {
-            render_deployment_info(app, f, chunks[1]);
+            // render_deployment_info(app, f, chunks[1]);
+            render_device_info(app, f, chunks[1]);
         }
     }
     render_key_bindings(app, f, chunks[1]);
@@ -142,50 +147,48 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
     let selected_index = app.list.state.selected().unwrap_or_default();
     let items_len = app.list.items.len();
     let page = selected_index / LIST_LIMIT;
+    let headers = AWS_INFO_TABS[app.info_index].headers();
+    let mut table_state = TableState::default();
+    table_state.select(Some(selected_index % LIST_LIMIT));
+    let max_row_width = (rect.width as usize / headers.len()).saturating_sub(2);
     let items = app
         .list
         .items
         .iter()
         .skip(page * LIST_LIMIT)
-        .take(LIST_LIMIT);
-    let left_padding = items
-        .clone()
-        .last()
-        .cloned()
-        .unwrap_or_default()
-        .first()
-        .map(|v| v.len())
-        .unwrap_or_default()
-        + 1;
-    let mut list_state = TableState::default();
-    list_state.select(Some(selected_index % LIST_LIMIT));
+        .take(LIST_LIMIT)
+        .map(|items| {
+            Row::new(items.iter().enumerate().map(|(i, value)| {
+                Cell::from(Line::from(if value.width() > max_row_width && i == 0 {
+                    let mut spans = highlight_search_result(
+                        value.chars().take(max_row_width).collect::<String>().into(),
+                        &app.input,
+                    );
+                    spans.push("…".fg(Color::Rgb(100, 100, 100)));
+                    spans
+                } else {
+                    highlight_search_result(value.to_string().into(), &app.input)
+                }))
+            }))
+        });
     frame.render_stateful_widget(
         Table::new(
-            items.map(|items| {
-                Row::new(vec![Cell::from({
-                    let name = format!("{:>p$}", items[0], p = left_padding);
-                    let status = items[1].to_string();
-                    // let time = items[2].to_string();
-                    let mut spans = vec![name.clone().cyan(), " ".into()];
-                    spans.extend(highlight_search_result(
-                        status
-                            .chars()
-                            .map(|c| if c.is_whitespace() { ' ' } else { c })
-                            .collect::<String>()
-                            .into(),
-                        &app.input,
-                    ));
-                    // spans.push(time.fg(app.cfg.highlight_style_bg));
-                    Line::from(spans)
-                })])
-            }),
-            &[Constraint::Percentage(100)],
+            items,
+            &[Constraint::Percentage(
+                (100 / headers.len()).try_into().unwrap_or_default(),
+            )]
+            .repeat(headers.len()),
         )
-        .header(Row::new(vec![
-            format!(" {}", DEVICES_HEADERS.join(" ")).bold()
-        ]))
+        .header(Row::new(
+            headers.to_vec().iter().map(|v| Cell::from((*v).bold())),
+        ))
         .block(
             Block::bordered()
+                .border_style(Style::default().fg(if app.block_index == 0 {
+                    Color::Yellow
+                } else {
+                    Color::Rgb(100, 100, 100)
+                }))
                 .title_bottom(
                     if items_len != 0 {
                         Line::from(vec![
@@ -202,12 +205,12 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
                 )
                 .title_bottom(get_input_line(app)),
         )
-        .highlight_style(Style::default().fg(Color::Green).bold()),
+        .highlight_style(Style::default().fg(Color::Green)),
         rect,
-        &mut list_state,
+        &mut table_state,
     );
     render_cursor(app, rect, frame);
-    // render_details(app, rect, frame);
+   
     frame.render_stateful_widget(
         Scrollbar::new(ScrollbarOrientation::VerticalRight)
             .begin_symbol(Some("↑"))
@@ -218,6 +221,7 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
         }),
         &mut ScrollbarState::new(items_len).position(selected_index),
     );
+    // render_details(app, rect, frame);
 }
 
 /// Render groups info.

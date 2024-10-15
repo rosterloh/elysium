@@ -29,6 +29,7 @@ itertools = "0.13.0"
 ratatui = { version = "0.28.1", features = ["crossterm", "serde"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tui-input = "0.10.1"
+unicode-width = "0.2.0"
 
 [profile.dev]
 opt-level = 0
