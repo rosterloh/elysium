@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 const ENV_PREFIX: &str = "ELYSIUM_";
 
+#[derive(Debug)]
 pub struct Config {
     pub highlight_style_bg: Color,
     pub highlight_style_fg: Color,
