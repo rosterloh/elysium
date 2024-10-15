@@ -2,7 +2,7 @@ use crate::{aws::Info, tui::app::App};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Margin, Position, Rect},
     style::{Color, Modifier, Style, Stylize},
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{
         Block, Cell, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation,
         ScrollbarState, Table, TableState, Tabs,
@@ -10,6 +10,7 @@ use ratatui::{
     Frame,
 };
 use tui_input::Input;
+use tui_popup::Popup;
 use unicode_width::UnicodeWidthStr;
 
 /// Titles of the main tabs.
@@ -98,18 +99,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
             );
         f.render_widget(tabs, chunks[0]);
     }
-    match app.tab {
-        Tab::CoreDevices => {
-            render_device_info(app, f, chunks[1]);
-        }
-        Tab::ThingGroups => {
-            render_group_info(app, f, chunks[1]);
-        }
-        Tab::Deployments => {
-            // render_deployment_info(app, f, chunks[1]);
-            render_device_info(app, f, chunks[1]);
-        }
-    }
+    render_device_info(app, f, chunks[1]);
+    // match app.tab {
+    //     Tab::CoreDevices => {
+    //         render_device_info(app, f, chunks[1]);
+    //     }
+    //     Tab::ThingGroups => {
+    //         render_group_info(app, f, chunks[1]);
+    //     }
+    //     Tab::Deployments => {
+    //         render_deployment_info(app, f, chunks[1]);
+    //     }
+    // }
     render_key_bindings(app, f, chunks[1]);
 }
 
@@ -173,7 +174,7 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
         });
     frame.render_stateful_widget(
         Table::new(
-            items,
+            items,  
             &[Constraint::Percentage(
                 (100 / headers.len()).try_into().unwrap_or_default(),
             )]
@@ -221,74 +222,75 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
         }),
         &mut ScrollbarState::new(items_len).position(selected_index),
     );
-    // render_details(app, rect, frame);
+    render_details(app, rect, frame);
 }
 
-/// Render groups info.
-pub fn render_group_info(_app: &mut App, _frame: &mut Frame, _rect: Rect) {
-}
+// /// Render groups info.
+// pub fn render_group_info(_app: &mut App, _frame: &mut Frame, _rect: Rect) {
+// }
 
-/// Render deployments info.
-pub fn render_deployment_info(_app: &mut App, _frame: &mut Frame, _rect: Rect) {
-}
+// /// Render deployments info.
+// pub fn render_deployment_info(_app: &mut App, _frame: &mut Frame, _rect: Rect) {
+// }
 
 /// Renders details popup.
-// fn render_details(app: &mut App, area: Rect, frame: &mut Frame<'_>) {
-//     if app.show_details {
-//         let headers;
-//         match app.tab {
-//             Tab::CoreDevices => {
-//                 headers = DEVICES_HEADERS;
-//             }
-//             _ => {
-//                 unimplemented!()
-//             }
-//         }
-//         let max_row_width = (area.width - 2) / 2;
-//         let items = app.list.selected().cloned().unwrap_or_default();
-//         let lines: Vec<Line> = items
-//             .iter()
-//             .enumerate()
-//             .flat_map(|(i, v)| {
-//                 let mut lines = Vec::new();
-//                 if v.width() as u16 > max_row_width {
-//                     lines.extend(
-//                         textwrap::wrap(v, textwrap::Options::new(max_row_width as usize))
-//                             .into_iter()
-//                             .enumerate()
-//                             .map(|(x, v)| {
-//                                 if x == 0 {
-//                                     Line::from(vec![
-//                                         Span::styled(
-//                                             headers[i].to_string(),
-//                                             Style::default().fg(Color::Cyan),
-//                                         ),
-//                                         Span::raw(": ").fg(Color::Rgb(100, 100, 100)),
-//                                         v.to_string().into(),
-//                                     ])
-//                                 } else {
-//                                     Line::from(v.to_string())
-//                                 }
-//                             }),
-//                     )
-//                 } else {
-//                     lines.push(Line::from(vec![
-//                         Span::styled(headers[i].to_string(), Style::default().fg(Color::Cyan)),
-//                         Span::raw(": ").fg(Color::Rgb(100, 100, 100)),
-//                         Span::styled(v, Style::default().fg(app.cfg.highlight_style_fg)),
-//                     ]));
-//                 }
-//                 lines
-//             })
-//             .collect();
-//         let popup = Popup::new(Text::from(lines)).title(Line::from(vec![
-//             "|".fg(Color::Rgb(100, 100, 100)),
-//             "Details".fg(app.cfg.highlight_style_fg).bold(),
-//             "|".fg(Color::Rgb(100, 100, 100)),
-//         ]));
-//         frame.render_widget(&popup, area);
-//     }
-// }
+fn render_details(app: &mut App, area: Rect, frame: &mut Frame<'_>) {
+    if app.show_details {
+        let headers = AWS_INFO_TABS[app.info_index].headers();
+        // let headers;
+        // match app.tab {
+        //     Tab::CoreDevices => {
+        //         headers = AWS_INFO_TABS[app.info_index].headers();
+        //     }
+        //     _ => {
+        //         unimplemented!()
+        //     }
+        // }
+        // let max_row_width = (area.width - 2) / 2;
+        let items = app.list.selected().cloned().unwrap_or_default();
+        let lines: Vec<Line> = items
+            .iter()
+            .enumerate()
+            .flat_map(|(i, v)| {
+                let mut lines = Vec::new();
+                // if v.width() as u16 > max_row_width {
+                //     lines.extend(
+                //         textwrap::wrap(v, textwrap::Options::new(max_row_width as usize))
+                //             .into_iter()
+                //             .enumerate()
+                //             .map(|(x, v)| {
+                //                 if x == 0 {
+                //                     Line::from(vec![
+                //                         Span::styled(
+                //                             headers[i].to_string(),
+                //                             Style::default().fg(Color::Cyan),
+                //                         ),
+                //                         Span::raw(": ").fg(Color::Rgb(100, 100, 100)),
+                //                         v.to_string().into(),
+                //                     ])
+                //                 } else {
+                //                     Line::from(v.to_string())
+                //                 }
+                //             }),
+                //     )
+                // } else {
+                lines.push(Line::from(vec![
+                    Span::styled(headers[i].to_string(), Style::default().fg(Color::Cyan)),
+                    Span::raw(": ").fg(Color::Rgb(100, 100, 100)),
+                    Span::styled(v, Style::default().fg(app.cfg.highlight_style_fg)),
+                ]));
+                // }
+                lines
+            })
+            .collect();
+        let popup = Popup::new(Text::from(lines)).title(Line::from(vec![
+            "|".fg(Color::Rgb(100, 100, 100)),
+            "Details".fg(app.cfg.highlight_style_fg).bold(),
+            "|".fg(Color::Rgb(100, 100, 100)),
+        ]));
+        frame.render_widget(&popup, area);
+    }
+}
 
 /// Renders the cursor.
 fn render_cursor(app: &mut App, area: Rect, frame: &mut Frame<'_>) {

@@ -164,43 +164,25 @@ impl App {
 
     /// Update the state based on selected tab.
     pub fn handle_tab(&mut self) -> AppResult<()> {
-        match self.tab {
-            Tab::CoreDevices => {
-                self.list = SelectableList::with_items(
-                    self.aws
-                        .info(&AWS_INFO_TABS[self.info_index])
-                        .items()
-                        .into_iter()
-                        .filter(|items| {
-                            self.input.value().is_empty()
-                                || items.iter().any(|item| {
-                                    item.to_lowercase()
-                                        .contains(&self.input.value().to_lowercase())
-                                })
+        self.list = SelectableList::with_items(
+            self.aws
+                .info(&AWS_INFO_TABS[self.info_index])
+                .items()
+                .into_iter()
+                .filter(|items| {
+                    self.input.value().is_empty()
+                        || items.iter().any(|item| {
+                            item.to_lowercase()
+                                .contains(&self.input.value().to_lowercase())
                         })
-                        .collect(),
-                );
-            }
-            Tab::ThingGroups => {
-                self.list = SelectableList::with_items(vec![]);
-            }
-            Tab::Deployments => {
-                self.list = SelectableList::with_items(
-                    self.aws
-                        .info(&AWS_INFO_TABS[self.info_index])
-                        .items()
-                        .into_iter()
-                        .filter(|items| {
-                            self.input.value().is_empty()
-                                || items.iter().any(|item| {
-                                    item.to_lowercase()
-                                        .contains(&self.input.value().to_lowercase())
-                                })
-                        })
-                        .collect(),
-                );
-            }
-        }
+                })
+                .collect(),
+        );
+        // match self.tab {
+        //     Tab::CoreDevices => {}
+        //     Tab::ThingGroups => {}
+        //     Tab::Deployments => {}
+        // }
         Ok(())
     }
 

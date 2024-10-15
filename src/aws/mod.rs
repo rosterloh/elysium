@@ -4,8 +4,12 @@ pub mod devices;
 /// Greengrass Deployments.
 pub mod deployments;
 
+/// IoT Core Thing Groups.
+pub mod groups;
+
 use deployments::Deployments;
 use devices::{Device, Devices};
+use groups::ThingGroups;
 
 use std::time::Duration;
 
@@ -13,9 +17,10 @@ use crate::tui::AppResult;
 use aws_config::{BehaviorVersion, meta::region::RegionProviderChain, stalled_stream_protection::StalledStreamProtectionConfig};
 use aws_types::{
     region::Region,
-    // sdk_config::SdkConfig
+    sdk_config::SdkConfig
 };
-use aws_sdk_greengrassv2::{types::Deployment, Client};
+use aws_sdk_greengrassv2::{self, types::Deployment};
+use aws_sdk_iot::{self, types::GroupNameAndArn};
 
 /// Property for receiving information.
 pub trait Property<'a> {
@@ -55,7 +60,7 @@ impl Info {
                 "Name", "Status", "Last Status Update",
             ],
             Info::ThingGroups => &[
-                "Name"
+                "Name", "ARN"
             ],
             Info::Deployments => &[
                 "Name", "Status", "Created",
@@ -68,11 +73,13 @@ impl Info {
 #[derive(Debug)]
 pub struct AwsCloud {
     // /// Local AWS config.
-    // shared_config: SdkConfig,
+    shared_config: SdkConfig,
     /// Greengrass connection client.
-    gg_client: Client,
+    gg_client: aws_sdk_greengrassv2::Client,
     /// Greengrass Core Devices.
     pub devices: Devices,
+    /// Thing Groups.
+    pub groups: ThingGroups,
     /// Greengrass Deployments.
     pub deployments: Deployments,
 }
@@ -99,18 +106,20 @@ impl AwsCloud {
             .load()
             .await;
 
-        let client = Client::new(&shared_config);
+        let client = aws_sdk_greengrassv2::Client::new(&shared_config);
 
         Ok(Self {
-            // shared_config: shared_config,
+            shared_config: shared_config,
             gg_client: client,
             devices: Devices::from(vec![]),
+            groups: ThingGroups::from(vec![]),
             deployments: Deployments::from(vec![]),
         })
     }
 
     pub async fn load(&mut self) -> AppResult<()> {
         self.devices = self.get_core_devices().await?;
+        self.groups = self.get_thing_groups().await?;
         self.deployments = self.get_deployments().await?;
         Ok(())
     }
@@ -146,6 +155,26 @@ impl AwsCloud {
         Ok(Devices::from(items))
     }
 
+    async fn get_thing_groups(&self) -> AppResult<ThingGroups> {
+        let mut items: Vec<GroupNameAndArn> = Vec::new();
+
+        let client = aws_sdk_iot::Client::new(&self.shared_config);
+
+        let resp = client.list_thing_groups()
+            .into_paginator()
+            .send()
+            .try_collect()
+            .await?;
+
+        for group in resp.into_iter().flat_map(|x| x.thing_groups.unwrap_or_default()) {
+            items.push(group);
+        }
+
+        items.sort_by(|a, b| a.group_name.as_ref().unwrap().to_lowercase().cmp(&b.group_name.as_ref().unwrap().to_lowercase()));
+
+        Ok(ThingGroups::from(items))
+    }
+
     async fn get_deployments(&self) -> AppResult<Deployments> {
         let mut items: Vec<Deployment> = Vec::new();
 
@@ -168,7 +197,7 @@ impl AwsCloud {
         match info {
             // Info::Sdk => todo!(),
             Info::CoreDevices => Box::new(self.devices.clone()),
-            Info::ThingGroups => todo!(),
+            Info::ThingGroups => Box::new(self.groups.clone()),
             Info::Deployments => Box::new(self.deployments.clone()),
         }
     }
