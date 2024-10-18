@@ -11,16 +11,13 @@ use deployments::Deployments;
 use devices::{Device, Devices};
 use groups::ThingGroups;
 
-use std::time::Duration;
+use std::{error::Error, time::Duration};
 
 use crate::tui::AppResult;
 use aws_config::{BehaviorVersion, meta::region::RegionProviderChain, stalled_stream_protection::StalledStreamProtectionConfig};
-use aws_types::{
-    region::Region,
-    sdk_config::SdkConfig
-};
-use aws_sdk_greengrassv2::{self, types::Deployment};
+use aws_sdk_greengrassv2::{self, error::SdkError, types::Deployment};
 use aws_sdk_iot::{self, types::GroupNameAndArn};
+use aws_types::{region::Region, sdk_config::SdkConfig};
 
 /// Property for receiving information.
 pub trait Property<'a> {
@@ -76,6 +73,8 @@ pub struct AwsCloud {
     shared_config: SdkConfig,
     /// Greengrass connection client.
     gg_client: aws_sdk_greengrassv2::Client,
+    /// IoT Core connection client.
+    iot_client: aws_sdk_iot::Client,
     /// Greengrass Core Devices.
     pub devices: Devices,
     /// Thing Groups.
@@ -108,9 +107,29 @@ impl AwsCloud {
 
         let client = aws_sdk_greengrassv2::Client::new(&shared_config);
 
+        // Test to see if we need to authenicate
+        let result = client.list_components().max_results(1).send().await;
+        if result.is_err() {
+            let sdk_error = &result.as_ref().unwrap_err();
+            match sdk_error {
+                SdkError::DispatchFailure(e) => {
+                    return Err(format!("Please authenticate with aws-cli: aws login. {:?}", e.as_connector_error()).into());
+                }
+                SdkError::ServiceError(e) => {
+                    return Err(format!("Service Error: {:?}", e.err().source()).into());
+                }
+                _ => {
+                    return Err(sdk_error.to_string().into());
+                }
+            }            
+        }
+
+        let iot_client = aws_sdk_iot::Client::new(&shared_config);
+
         Ok(Self {
             shared_config: shared_config,
             gg_client: client,
+            iot_client: iot_client,
             devices: Devices::from(vec![]),
             groups: ThingGroups::from(vec![]),
             deployments: Deployments::from(vec![]),
@@ -131,16 +150,9 @@ impl AwsCloud {
             .into_paginator()
             .send()
             .try_collect()
-            .await;
+            .await?;
         
-        if resp.is_err() {
-            // let sdk_error = &resp.as_ref().unwrap_err();
-            // if let SdkError::DispatchFailure { err, .. } = sdk_error {
-            // }
-            return Err(resp.unwrap_err().to_string().into());
-        }
-    
-        for device in resp?.into_iter().flat_map(|x| x.core_devices.unwrap_or_default()) {
+        for device in resp.into_iter().flat_map(|x| x.core_devices.unwrap_or_default()) {
             let thing_name =  device.core_device_thing_name().unwrap_or_default().to_string();
             // let connectivity = client.get_connectivity_info().thing_name(&thing_name).send().await?;
             items.push(Device {
@@ -158,9 +170,7 @@ impl AwsCloud {
     async fn get_thing_groups(&self) -> AppResult<ThingGroups> {
         let mut items: Vec<GroupNameAndArn> = Vec::new();
 
-        let client = aws_sdk_iot::Client::new(&self.shared_config);
-
-        let resp = client.list_thing_groups()
+        let resp = self.iot_client.list_thing_groups()
             .into_paginator()
             .send()
             .try_collect()
