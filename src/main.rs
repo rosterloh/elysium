@@ -1,23 +1,18 @@
-use crate::tui::{App, AppResult, Config, Tui};
-
 use clap::Parser;
 use ratatui::{backend::CrosstermBackend, Terminal};
-use tui::{
+use elysium::args::Args;
+use elysium::aws::AwsCloud;
+use elysium::tui::{
+    App, Config, Tui,
     command::{Command, InputCommand},
     event::{Event, EventHandler},
 };
-
-mod args;
-mod aws;
-mod tui;
+use elysium::AppResult;
 
 #[tokio::main]
 async fn main() -> AppResult<()> {
-    // trace::initialize_logging()?;
-
-    // trace_dbg!("Starting elysium");
-    let args = args::Args::parse();
-    let mut aws = aws::AwsCloud::new(&args.profile, &args.region).await?;
+    let args = Args::parse();
+    let mut aws = AwsCloud::new(&args.profile, &args.region).await?;
     aws.load().await?;
     
     let cfg = Config::load();

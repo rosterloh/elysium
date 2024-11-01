@@ -5,7 +5,7 @@ use std::sync::{
 };
 use std::thread;
 use std::time::{Duration, Instant};
-use super::app::AppResult;
+use crate::AppResult;
 
 /// Terminal events.
 #[derive(Clone, Copy)]

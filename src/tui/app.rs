@@ -1,17 +1,19 @@
-use std::{usize, error};
+use std::usize;
 use std::sync::mpsc;
 
-use crate::aws::AwsCloud;
-use crate::tui::command::*;
-use crate::tui::config::Config;
-use crate::tui::event::Event;
-use crate::tui::ui::{Tab, MAIN_TABS, AWS_INFO_TABS};
-use crate::tui::widgets::list::SelectableList;
+use crate::{
+    aws::AwsCloud,
+    tui::{
+        command::*,
+        config::Config,
+        event::Event,
+        ui::{Tab, MAIN_TABS, AWS_INFO_TABS},
+        widgets::list::SelectableList
+    },
+    AppResult
+};
 use tui_input::backend::crossterm::EventHandler;
 use tui_input::Input;
-
-/// Application result type.
-pub type AppResult<T> = anyhow::Result<T, Box<dyn error::Error>>;
 
 /// Application state.
 #[derive(Debug)]

@@ -13,7 +13,7 @@ use groups::ThingGroups;
 
 use std::{error::Error, time::Duration};
 
-use crate::tui::AppResult;
+use crate::AppResult;
 use aws_config::{BehaviorVersion, meta::region::RegionProviderChain, stalled_stream_protection::StalledStreamProtectionConfig};
 use aws_sdk_greengrassv2::{self, error::SdkError, types::Deployment};
 use aws_sdk_iot::{self, types::GroupNameAndArn};
@@ -69,7 +69,8 @@ impl Info {
 /// AWS information.
 #[derive(Debug)]
 pub struct AwsCloud {
-    // /// Local AWS config.
+    /// Local AWS config.
+    #[allow(dead_code)]
     shared_config: SdkConfig,
     /// Greengrass connection client.
     gg_client: aws_sdk_greengrassv2::Client,

@@ -206,7 +206,7 @@ pub fn render_device_info(app: &mut App, frame: &mut Frame, rect: Rect) {
                 )
                 .title_bottom(get_input_line(app)),
         )
-        .highlight_style(Style::default().fg(Color::Green)),
+        .row_highlight_style(Style::default().fg(Color::Green)),
         rect,
         &mut table_state,
     );
@@ -283,12 +283,12 @@ fn render_details(app: &mut App, area: Rect, frame: &mut Frame<'_>) {
                 lines
             })
             .collect();
-        let popup = Popup::new(Text::from(lines)).title(Line::from(vec![
-            "|".fg(Color::Rgb(100, 100, 100)),
-            "Details".fg(app.cfg.highlight_style_fg).bold(),
-            "|".fg(Color::Rgb(100, 100, 100)),
-        ]));
-        frame.render_widget(&popup, area);
+        // let popup = Popup::new(Text::from(lines)).title(Line::from(vec![
+        //     "|".fg(Color::Rgb(100, 100, 100)),
+        //     "Details".fg(app.cfg.highlight_style_fg).bold(),
+        //     "|".fg(Color::Rgb(100, 100, 100)),
+        // ]));
+        // frame.render_widget(&popup, area);
     }
 }
 

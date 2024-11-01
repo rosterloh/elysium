@@ -1,7 +1,7 @@
 /// Application state handler.
 mod app;
 pub use self::app::App;
-pub use self::app::AppResult;
+use crate::AppResult;
 
 /// Possible commands.
 pub mod command;
