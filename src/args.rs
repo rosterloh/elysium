@@ -1,37 +1,52 @@
 use clap::Parser;
 
-/// Argument parser powered by [`clap`].
-#[derive(Clone, Debug, Default, Parser)]
-#[clap(
-    version,
-    author = clap::crate_authors!("\n"),
-    about,
-    rename_all_env = "screaming-snake",
-    help_template = "\
-{before-help}{name} {version}
-{author-with-newline}{about-with-newline}
-{usage-heading}
-  {usage}
+use crate::utils::{get_config_dir, get_data_dir};
 
-{all-args}{after-help}
-",
-)]
+#[derive(Debug, Parser)]
+#[clap(author, version = version(), about)]
 pub struct Args {
     /// AWS profile to use.
-    #[arg(env, short = 'p', long = "profile", default_value = "iotmgmt_prod")]
+    #[arg(
+        short = 'p',
+        long = "profile",
+        help = "Name of the profile configured in your local AWS config file",
+        default_value = "iotmgmt_prod"
+    )]
     pub profile: String,
 
     /// AWS region to use.
-    #[arg(env, short = 'r', long = "region", default_value = "eu-west-1")]
+    #[arg(
+        short = 'r',
+        long = "region",
+        help = "AWS region to use",
+        default_value = "eu-west-1"
+    )]
     pub region: String,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use clap::CommandFactory;
-    #[test]
-    fn test_args() {
-        Args::command().debug_assert();
-    }
+const VERSION_MESSAGE: &str = concat!(
+    env!("CARGO_PKG_VERSION"),
+    "-",
+    env!("VERGEN_GIT_DESCRIBE"),
+    " (",
+    env!("VERGEN_BUILD_DATE"),
+    ")"
+);
+
+pub fn version() -> String {
+    let author = clap::crate_authors!();
+
+    // let current_exe_path = PathBuf::from(clap::crate_name!()).display().to_string();
+    let config_dir_path = get_config_dir().display().to_string();
+    let data_dir_path = get_data_dir().display().to_string();
+
+    format!(
+        "\
+{VERSION_MESSAGE}
+
+Authors: {author}
+
+Config directory: {config_dir_path}
+Data directory: {data_dir_path}"
+    )
 }

@@ -1,69 +1,29 @@
-/// Greengrass Core Devices.
-pub mod devices;
-
-/// Greengrass Deployments.
-pub mod deployments;
-
-/// IoT Core Thing Groups.
-pub mod groups;
-
-use deployments::Deployments;
-use devices::{Device, Devices};
-use groups::ThingGroups;
-
 use std::{error::Error, time::Duration};
 
-use crate::AppResult;
-use aws_config::{BehaviorVersion, meta::region::RegionProviderChain, stalled_stream_protection::StalledStreamProtectionConfig};
+use aws_config::{
+    BehaviorVersion,
+    meta::region::RegionProviderChain,
+    stalled_stream_protection::StalledStreamProtectionConfig
+};
 use aws_sdk_greengrassv2::{self, error::SdkError, types::Deployment};
 use aws_sdk_iot::{self, types::GroupNameAndArn};
 use aws_types::{region::Region, sdk_config::SdkConfig};
+use color_eyre::Result;
+
+use crate::aws::{
+    deployments::Deployments,
+    devices::{Device, Devices},
+    groups::ThingGroups,
+};
+
+pub mod devices;
+pub mod deployments;
+pub mod groups;
 
 /// Property for receiving information.
 pub trait Property<'a> {
     /// Returns the items.
     fn items(&self) -> Vec<Vec<String>>;
-}
-
-/// Device information.
-#[derive(Debug)]
-pub enum Info {
-    // /// SDK Configuation.
-    // Sdk,
-    /// Core Devices.
-    CoreDevices,
-    /// Thing Groups.
-    ThingGroups,
-    /// Deployments.
-    Deployments,
-}
-
-impl Info {
-    /// Returns the title.
-    pub fn title(&self) -> &str {
-        match self {
-            // Info::Sdk => todo!(),
-            Info::CoreDevices => "Core Devices",
-            Info::ThingGroups => "Thing Groups",
-            Info::Deployments => "Deployments",
-        }
-    }
-
-    /// Returns the headers.
-    pub fn headers(&self) -> &[&str] {
-        match self {
-            // Info::Sdk => todo!(),
-            Info::CoreDevices => &[
-                "Name", "Status", "Last Status Update",
-            ],
-            Info::ThingGroups => &[
-                "Name", "ARN"
-            ],
-            Info::Deployments => &[
-                "Name", "Status", "Created",
-            ]
-        }
-    }
 }
 
 /// AWS information.
@@ -89,7 +49,7 @@ impl AwsCloud {
     pub async fn new(
         profile: &str,
         region: &str,
-    ) -> AppResult<Self> {
+    ) -> Result<Self, String> {
         let region_provider = RegionProviderChain::first_try(Region::new(region.to_owned()))
             .or_default_provider()
             .or_else(Region::new("eu-west-1"));
@@ -114,13 +74,13 @@ impl AwsCloud {
             let sdk_error = &result.as_ref().unwrap_err();
             match sdk_error {
                 SdkError::DispatchFailure(e) => {
-                    return Err(format!("Please authenticate with aws-cli: aws login. {:?}", e.as_connector_error()).into());
+                    return Err(format!("Please authenticate with aws-cli: aws login. {:?}", e.as_connector_error()));
                 }
                 SdkError::ServiceError(e) => {
-                    return Err(format!("Service Error: {:?}", e.err().source()).into());
+                    return Err(format!("Service Error: {:?}", e.err().source()));
                 }
                 _ => {
-                    return Err(sdk_error.to_string().into());
+                    return Err(sdk_error.to_string());
                 }
             }            
         }
@@ -137,14 +97,14 @@ impl AwsCloud {
         })
     }
 
-    pub async fn load(&mut self) -> AppResult<()> {
+    pub async fn load(&mut self) -> Result<()> {
         self.devices = self.get_core_devices().await?;
         self.groups = self.get_thing_groups().await?;
         self.deployments = self.get_deployments().await?;
         Ok(())
     }
 
-    async fn get_core_devices(&self) -> AppResult<Devices> {
+    async fn get_core_devices(&self) -> Result<Devices> {
         let mut items: Vec<Device> = Vec::new();
     
         let resp = self.gg_client.list_core_devices()
@@ -168,7 +128,7 @@ impl AwsCloud {
         Ok(Devices::from(items))
     }
 
-    async fn get_thing_groups(&self) -> AppResult<ThingGroups> {
+    async fn get_thing_groups(&self) -> Result<ThingGroups> {
         let mut items: Vec<GroupNameAndArn> = Vec::new();
 
         let resp = self.iot_client.list_thing_groups()
@@ -186,7 +146,7 @@ impl AwsCloud {
         Ok(ThingGroups::from(items))
     }
 
-    async fn get_deployments(&self) -> AppResult<Deployments> {
+    async fn get_deployments(&self) -> Result<Deployments> {
         let mut items: Vec<Deployment> = Vec::new();
 
         let resp = self.gg_client.list_deployments()
@@ -195,21 +155,13 @@ impl AwsCloud {
             .await?;
 
         for deployment in resp.deployments.unwrap() {
-            items.push(deployment);
+            if deployment.deployment_name.is_some() {
+                items.push(deployment);
+            }
         }
 
         items.sort_by(|a, b| a.deployment_name.as_ref().unwrap().to_lowercase().cmp(&b.deployment_name.as_ref().unwrap().to_lowercase()));
 
         Ok(Deployments::from(items))
-    }
-
-    /// Returns the information about the AWS Cloud.
-    pub fn info<'a>(&self, info: &Info) -> Box<dyn Property<'a>> {
-        match info {
-            // Info::Sdk => todo!(),
-            Info::CoreDevices => Box::new(self.devices.clone()),
-            Info::ThingGroups => Box::new(self.groups.clone()),
-            Info::Deployments => Box::new(self.deployments.clone()),
-        }
     }
 }
