@@ -28,7 +28,7 @@ human-panic = "2.0.2"
 itertools = "0.13.0"
 lazy_static = "1.5.0"
 ratatui = { version = "0.29.0", features = ["serde", "macros"] }
-serde = { version = "1.0.215", features = ["derive"] }
+serde = { version = "1.0.216", features = ["derive"] }
 signal-hook = "0.3.17"
 strum = { version = "0.26.3", features = ["derive"] }
 tokio = { version = "1.42.0", features = ["full"] }
@@ -64,18 +64,11 @@ opt-level = 0
 debug = true
 panic = "abort"
 
-[profile.test]
-opt-level = 0
-debug = true
-
+# https://doc.rust-lang.org/cargo/reference/profiles.html#release
 [profile.release]
-opt-level = 3
+opt-level = "z"
 debug = false
 panic = "unwind"
 lto = true
 codegen-units = 1
 strip = true
-
-[profile.bench]
-opt-level = 3
-debug = false

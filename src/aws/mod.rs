@@ -74,9 +74,11 @@ impl AwsCloud {
             let sdk_error = &result.as_ref().unwrap_err();
             match sdk_error {
                 SdkError::DispatchFailure(e) => {
-                    return Err(format!("Please authenticate with aws-cli: aws login. {:?}", e.as_connector_error()));
+                    tracing::error!("DispatchFailure: {:?}", e.as_connector_error());
+                    return Err(String::from("Please authenticate with aws-cli: aws login."));
                 }
                 SdkError::ServiceError(e) => {
+                    tracing::error!("Service Error: {:?}", e);
                     return Err(format!("Service Error: {:?}", e.err().source()));
                 }
                 _ => {

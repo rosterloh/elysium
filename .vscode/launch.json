@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Elysium",
+            "request": "launch",
+            "preLaunchTask" : "Build Elysium (Release)",
+            "program": "${workspaceFolder}/target/release/elysium",
+            "cwd": "${workspaceFolder}",
+            "type":"lldb",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Debug Elysium",
+            "request": "launch",
+            "preLaunchTask" : "Build Elysium (Debug)",
+            "program": "${workspaceFolder}/target/debug/elysium",
+            "cwd": "${workspaceFolder}",
+            "type":"lldb",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Attach to Elysium",
+            "type": "lldb",
+            "request": "attach",
+            "pid": "${command:pickMyProcess}"
+        }
+    ]
+}

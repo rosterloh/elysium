@@ -1,6 +1,6 @@
 use clap::Parser;
 use args::Args;
-use color_eyre::Result;
+use color_eyre::{Report, Result};
 
 use crate::{
     app::App,
@@ -24,10 +24,12 @@ async fn tokio_main() -> Result<()> {
 
     let args = Args::parse();
     
-    let mut aws = AwsCloud::new(&args.profile, &args.region).await.unwrap();
-    aws.load().await?;
+    let aws = AwsCloud::new(&args.profile, &args.region).await;
+    if aws.is_err() {
+        return Err(Report::msg(aws.unwrap_err()));
+    }
 
-    let mut app = App::new(aws)?;
+    let mut app = App::new(aws.unwrap())?;
     app.run().await?;
     Ok(())
 }

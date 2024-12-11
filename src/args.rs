@@ -22,6 +22,14 @@ pub struct Args {
         default_value = "eu-west-1"
     )]
     pub region: String,
+
+    /// Increase verbosity. Can be used multiple times
+    #[arg(
+        short,
+        long,
+        action = clap::ArgAction::Count
+    )]
+    pub verbose: u8,
 }
 
 const VERSION_MESSAGE: &str = concat!(

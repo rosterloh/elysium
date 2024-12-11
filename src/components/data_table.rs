@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use color_eyre::Result;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, Event};
 use ratatui::{
     layout::{Constraint, Rect},
     prelude::*,
@@ -8,10 +10,10 @@ use ratatui::{
     widgets::*,
 };
 use tokio::{
-    sync::mpsc::UnboundedSender,
+    sync::{mpsc::UnboundedSender, Mutex},
     task::JoinHandle,
 };
-use tui_input::Input;
+use tui_input::{backend::crossterm::EventHandler, Input};
 
 use crate::{
     action::Action,
@@ -27,7 +29,9 @@ static INPUT_SIZE: usize = 30;
 const SPINNER_SYMBOLS: [&str; 6] = ["⠷", "⠯", "⠟", "⠻", "⠽", "⠾"];
 
 pub struct DataTable {
-    aws: AwsCloud,
+    // aws: Arc<RwLock<AwsCloud>>,
+    aws: Arc<Mutex<AwsCloud>>,
+    // aws: AwsCloud,
     active_tab: TabsEnum,
     action_tx: Option<UnboundedSender<Action>>,
     data_list: Vec<Vec<String>>,
@@ -43,6 +47,10 @@ pub struct DataTable {
 
 impl DataTable {
     pub fn new(aws: AwsCloud) -> Self {
+        // RwLock: often read but rarely write (https://docs.rs/tokio/latest/tokio/sync/struct.RwLock.html)
+        // Mutex: update data on every read (https://docs.rs/tokio/latest/tokio/sync/struct.Mutex.html)
+        // let aws = Arc::new(RwLock::new(aws));
+        let aws = Arc::new(Mutex::new(aws));
         Self {
             aws: aws,
             active_tab: TabsEnum::Devices,
@@ -70,25 +78,25 @@ impl DataTable {
         self.is_loading = true;
 
         let tx = self.action_tx.clone().unwrap();
-        // let aws = self.aws.clone();
+        let aws = self.aws.clone();
 
         self.task = tokio::spawn(async move {
-            // aws.load().await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
+            // let mut write = aws.write().await;
+            // write.load().await.unwrap();
+            // drop(write);
+            aws.lock().await.load().await.unwrap();
+            // tokio::time::sleep(std::time::Duration::from_millis(5000)).await;
             tx.send(Action::DataLoaded).unwrap_or_default();
         });
-
-        // let _ = self.task.await;
-        // self.is_loading = false;
     }
 
-    // fn set_scrollbar_height(&mut self) {
-    //     let mut data_len = 0;
-    //     if !self.data_list.is_empty() {
-    //         data_len = self.data_list.len() - 1;
-    //     }
-    //     self.scrollbar_state = self.scrollbar_state.content_length(data_len);
-    // }
+    fn set_scrollbar_height(&mut self) {
+        let mut data_len = 0;
+        if !self.data_list.is_empty() {
+            data_len = self.data_list.len() - 1;
+        }
+        self.scrollbar_state = self.scrollbar_state.content_length(data_len);
+    }
 
     fn previous_in_table(&mut self) {
         let index = match self.table_state.selected() {
@@ -131,6 +139,7 @@ impl DataTable {
     fn make_table(
         data_list: &Vec<Vec<String>>,
         is_loading: bool,
+        filter_str: String,
     ) -> Table {
         let header = Row::new(vec!["Name", "Status", "Last Status Update",])
             .style(Style::default().fg(Color::Yellow))
@@ -140,15 +149,18 @@ impl DataTable {
 
         for data in data_list {
             let (name, status, timestamp) = (data[0].clone(), data[1].clone(), data[2].clone());
-            rows.push(Row::new(vec![
-                Cell::from(Span::styled(
-                    format!("{}", name),
-                    Style::default().fg(Color::Blue),
-                )),
-                Cell::from(status.green()),
-                Cell::from(timestamp),
-                // Cell::from(sip.vendor.as_str().yellow()),
-            ]));
+
+            if filter_str.is_empty() || (name.contains(&filter_str) && !filter_str.is_empty()) {
+                rows.push(Row::new(vec![
+                    Cell::from(Span::styled(
+                        format!("{}", name),
+                        Style::default().fg(Color::Blue),
+                    )),
+                    Cell::from(status.green()),
+                    Cell::from(timestamp),
+                    // Cell::from(sip.vendor.as_str().yellow()),
+                ]));
+            }
         }
 
         let mut loading_title = vec![
@@ -235,6 +247,15 @@ impl DataTable {
                     .title_bottom(Line::from(vec![
                         Span::raw("|"),
                         Span::styled(
+                            "c",
+                            Style::default().add_modifier(Modifier::BOLD).fg(Color::Red),
+                        ),
+                        Span::styled("lear", Style::default().fg(Color::Yellow)),
+                        Span::raw("|"),
+                    ]).left_aligned())
+                    .title_bottom(Line::from(vec![
+                        Span::raw("|"),
+                        Span::styled(
                             "i",
                             Style::default().add_modifier(Modifier::BOLD).fg(Color::Red),
                         ),
@@ -290,7 +311,7 @@ impl Component for DataTable {
                     Action::ModeChange(Mode::Normal)
                 }
                 _ => {
-                    // self.input.handle_event(&crossterm::event::Event::Key(key));
+                    self.input.handle_event(&Event::Key(key));
                     return Ok(None);
                 }
             },
@@ -338,27 +359,37 @@ impl Component for DataTable {
             self.tab_changed(tab).unwrap();
         }
 
+        if let Action::Clear = action {
+            self.input.reset();
+            self.filter_str = String::from("");
+        }
+
         Ok(None)
     }
 
     fn tab_changed(&mut self, tab: TabsEnum) -> Result<()> {
         self.active_tab = tab;
 
-        match self.active_tab {
-            TabsEnum::Devices => self.data_list = self.aws.devices.items(),
-            TabsEnum::Deployments => self.data_list = self.aws.deployments.items(),
-        }
+        futures::executor::block_on(async {
+            match tab {
+                TabsEnum::Devices => self.data_list = self.aws.lock().await.devices.items(),
+                TabsEnum::Deployments => self.data_list = self.aws.lock().await.deployments.items(),
+            }
+        });
+        
+        self.set_scrollbar_height();
 
         Ok(())
     }
 
     fn draw(&mut self, frame: &mut Frame<'_>, area: Rect) -> Result<()> {
         let layout = get_vertical_layout(area);
+        
         let mut table_rect = layout.bottom;
         table_rect.y += 1;
         table_rect.height -= 1;
 
-        let table = Self::make_table(&self.data_list, self.is_loading);
+        let table = Self::make_table(&self.data_list, self.is_loading, self.filter_str.clone());
         frame.render_stateful_widget(table, table_rect, &mut self.table_state);
 
         let scrollbar = Self::make_scrollbar();
