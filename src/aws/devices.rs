@@ -5,6 +5,8 @@ use crate::aws::Property;
 pub struct Device {
     /// Name of the core device.
     pub name: String,
+    /// Whether the IoT Core things is currently connected.
+    pub is_connected: bool,
     /// Device status HEALTHY or UNHEALTHY.
     pub status: String,
     /// The time at which the core device's status last updated, expressed in ISO 8601 format.

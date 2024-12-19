@@ -117,9 +117,21 @@ impl AwsCloud {
         
         for device in resp.into_iter().flat_map(|x| x.core_devices.unwrap_or_default()) {
             let thing_name =  device.core_device_thing_name().unwrap_or_default().to_string();
-            // let connectivity = client.get_connectivity_info().thing_name(&thing_name).send().await?;
+            // let connectivity = self.gg_client.get_connectivity_info().thing_name(&thing_name).send().await?;
+            let connectivity = self.iot_client.get_thing_connectivity_data().thing_name(&thing_name).send().await;
+            let mut is_connected = false;
+            match connectivity {
+                Ok(connectivity) => {
+                    is_connected = connectivity.connected().unwrap_or_default();
+                },
+                Err(e) => {
+                    tracing::error!("Error getting connectivity info: {:?}", e);
+                }
+            }
+
             items.push(Device {
                 name: thing_name,
+                is_connected: is_connected,
                 status: device.status().unwrap().to_string(),
                 last_status_update_timestamp: device.last_status_update_timestamp().unwrap().to_string(),
             });
