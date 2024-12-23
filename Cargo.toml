@@ -41,7 +41,7 @@ tui-popup = "0.6.0"
 unicode-width = "0.2.0"
 
 [build-dependencies]
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 vergen-gix = { version = "1.0.3", features = ["build", "cargo"] }
 
 [package.metadata.deb]
