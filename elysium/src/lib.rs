@@ -1,5 +1,6 @@
 use std::{error::Error, time::Duration};
 
+use anyhow::Result;
 use aws_config::{
     BehaviorVersion,
     meta::region::RegionProviderChain,
@@ -8,9 +9,8 @@ use aws_config::{
 use aws_sdk_greengrassv2::{self, error::SdkError, types::Deployment};
 use aws_sdk_iot::{self, types::GroupNameAndArn};
 use aws_types::{region::Region, sdk_config::SdkConfig};
-use color_eyre::Result;
 
-use crate::aws::{
+pub use {
     deployments::Deployments,
     devices::{Device, Devices},
     groups::ThingGroups,

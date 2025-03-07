@@ -1,0 +1,21 @@
+[package]
+authors.workspace = true
+categories = ["command-line-utilities"]
+description = "Tools for managing IoT Core cloud devices"
+edition.workspace = true
+homepage = "https://github.com/rosterloh/elysium"
+keywords = ["aws", "tui"]
+license = "MIT"
+name = "elysium"
+readme = "../README.md"
+repository.workspace = true
+rust-version.workspace = true
+version = "0.1.0"
+
+[dependencies]
+anyhow.workspace = true
+aws-config = { version= "1.5.18", features = ["behavior-version-latest"] }
+aws-sdk-greengrassv2 = "1.62.0"
+aws-sdk-iot = "1.71.0"
+aws-types = "1.3.5"
+tracing.workspace = true

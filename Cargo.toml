@@ -1,74 +1,17 @@
-[package]
-authors = ["Richard Osterloh <richard.osterloh@gmail.com>"]
-build = "build.rs"
-categories = ["command-line-utilities"]
-description = "Tools for managing IoT Core cloud devices"
-edition = "2021"
-homepage = "https://github.com/rosterloh/elysium"
-keywords = ["aws", "tui"]
-license = "MIT"
-name = "elysium"
-readme = "README.md"
-repository = "https://github.com/rosterloh/elysium"
-rust-version = "1.83.0"
-version = "0.1.0"
-
-[dependencies]
-aws-config = { version= "1.5.13", features = ["behavior-version-latest"] }
-aws-sdk-greengrassv2 = "1.54.0"
-aws-sdk-iot = "1.61.0"
-aws-types = "1.3.3"
-better-panic = "0.3.0"
-color-eyre = "0.6.3"
-clap = { version = "4.5.28", features = ["cargo", "derive", "string", "wrap_help"] }
-crossterm = { version = "0.28.1", features = ["serde", "event-stream"] }
-directories = "6.0.0"
-futures = "0.3.31"
-human-panic = "2.0.2"
-itertools = "0.14.0"
-lazy_static = "1.5.0"
-ratatui = { version = "0.29.0", features = ["serde", "macros"] }
-serde = { version = "1.0.217", features = ["derive"] }
-signal-hook = "0.3.17"
-strum = { version = "0.27.0", features = ["derive"] }
-tokio = { version = "1.43.0", features = ["full"] }
-tokio-util = "0.7.13"
-tracing = "0.1.41"
-tracing-error = "0.2.1"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter", "serde"] }
-tui-input = "0.11.1"
-tui-popup = "0.6.0"
-unicode-width = "0.2.0"
-
-[build-dependencies]
-anyhow = "1.0.95"
-vergen-gix = { version = "1.0.6", features = ["build", "cargo"] }
-
-[package.metadata.deb]
-depends = "$auto"
-extended-description = """
-Elysium is a terminal-based application to view and query AWS IoT Core devices.
-"""
-section = "utils"
-priority = "optional"
-assets = [
-     [
-        "target/release/elysium",
-        "/usr/bin/elysium",
-        "0755",
-    ],
+[workspace]
+resolver = "2"
+members = [
+    "elysium",
+    "elysium_tui",
 ]
 
-[profile.dev]
-opt-level = 0
-debug = true
-panic = "abort"
+[workspace.package]
+authors = ["Richard Osterloh <richard.osterloh@gmail.com>"]
+include = ["src/**/*.rs", "LICENSE", "README.md"]
+edition = "2024"
+repository = "https://github.com/rosterloh/elysium"
+rust-version = "1.85.0"
 
-# https://doc.rust-lang.org/cargo/reference/profiles.html#release
-[profile.release]
-opt-level = "z"
-debug = false
-panic = "unwind"
-lto = true
-codegen-units = 1
-strip = true
+[workspace.dependencies]
+anyhow = "^1.0.97"
+tracing = "^0.1.41"

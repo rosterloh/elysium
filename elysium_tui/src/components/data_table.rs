@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, Event};
+use elysium::{AwsCloud, Property};
 use ratatui::{
     layout::{Constraint, Rect},
     prelude::*,
@@ -18,7 +19,6 @@ use tui_input::{backend::crossterm::EventHandler, Input};
 use crate::{
     action::Action,
     app::Mode,
-    aws::{AwsCloud, Property},
     components::Component,
     enums::TabsEnum,
     layout::{get_vertical_layout, DEFAULT_BORDER_STYLE},

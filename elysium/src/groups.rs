@@ -1,4 +1,4 @@
-use crate::aws::Property;
+use crate::Property;
 use aws_sdk_iot::types::GroupNameAndArn;
 
 /// Greengrass Deployments.

@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use color_eyre::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use elysium::AwsCloud;
 use ratatui::prelude::Rect;
 use tokio::sync::mpsc;
 use tracing::debug;
 
 use crate::{
     action::Action,
-    aws::AwsCloud,
     components::{
         data_table::DataTable,
         header::Header,

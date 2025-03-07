@@ -1,4 +1,4 @@
-use crate::aws::Property;
+use crate::Property;
 
 /// Representation of a Device.
 #[derive(Clone, Debug, Default)]

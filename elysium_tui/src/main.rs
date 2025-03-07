@@ -1,17 +1,16 @@
 use clap::Parser;
 use args::Args;
 use color_eyre::{Report, Result};
+use elysium::AwsCloud;
 
 use crate::{
     app::App,
-    aws::AwsCloud,
     utils::{initialise_logging, initialise_panic_handler}
 };
 
 mod action;
 mod app;
 mod args;
-mod aws;
 mod components;
 mod enums;
 mod layout;
