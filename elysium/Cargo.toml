@@ -17,5 +17,5 @@ anyhow.workspace = true
 aws-config = { version= "1.5.18", features = ["behavior-version-latest"] }
 aws-sdk-greengrassv2 = "1.62.0"
 aws-sdk-iot = "1.71.0"
-aws-types = "1.3.5"
+aws-types = "1.3.6"
 tracing.workspace = true
